@@ -10,172 +10,214 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --accent: #3b82f6; --danger: #f43f5e; --bg: #020617; }
-        body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; height: 100vh; }
+        body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
         #map { width: 100%; height: 100%; background: #020617; }
+        .leaflet-control-attribution { display: none !important; }
         
-        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,0.1); }
+        /* 侧边栏布局核心 */
+        .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-right: 1px solid rgba(255,255,255,0.08); }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
 
-        .leaflet-tooltip {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
+        /* 宽屏悬浮提示框 - 优化稳定性版本 */
+        .leaflet-tooltip.custom-tip {
+            background: rgba(7, 10, 22, 0.98) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #fff !important;
+            border-radius: 16px !important;
             padding: 0 !important;
-            opacity: 1 !important;
-        }
-
-        .tip-card {
-            background: rgba(15, 23, 42, 0.98);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px;
-            width: 320px;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+            width: 320px !important;
             backdrop-filter: blur(12px);
+            opacity: 0;
+            transition: opacity 0.2s ease;
             pointer-events: none;
-            animation: fadeIn 0.2s ease-out;
-            overflow: hidden;
         }
-
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        .leaflet-tooltip-fade-in { opacity: 1 !important; }
         
-        .tip-accent { width: 100%; height: 3px; }
-        .tip-body { padding: 16px 20px; }
-        .tip-title { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
-        .tip-content { font-size: 13px; line-height: 1.6; color: #94a3b8; white-space: pre-wrap; word-break: break-all; }
+        .tip-container { padding: 16px 20px; position: relative; }
+        .tip-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+        .tip-title { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .tip-content { font-size: 13px; line-height: 1.6; color: #94a3b8; word-wrap: break-word; white-space: pre-wrap; }
 
-        .admin-area { border-top: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.95); }
-        .btn-action { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-size: 11px; font-weight: 700; padding: 10px; border-radius: 12px; transition: 0.2s; }
-        .btn-action:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        /* 列表层级样式 */
+        .tree-ct { color: #3b82f6; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; padding: 2rem 0 0.8rem 0; border-bottom: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 1rem; }
+        .tree-cy { border-left: 1px solid #1e293b; margin-left: 4px; padding-left: 12px; margin-bottom: 1.5rem; }
+        .tree-cy-name { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+        .tree-pl { font-size: 13px; color: #cbd5e1; padding: 8px 10px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+        .tree-pl:hover { background: rgba(255,255,255,0.05); }
+        .tree-pl.active { background: rgba(59, 130, 246, 0.15); color: #fff; }
 
-        .tree-ct-title { color: #3b82f6; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 1.5rem 0 0.5rem 0; }
-        .tree-cy-box { border-left: 1px solid #1e293b; margin-left: 4px; padding-left: 12px; margin-bottom: 12px; }
-        .tree-cy-name { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
-
-        #modalOverlay { background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; backdrop-filter: blur(10px); }
-        .modal-card { width: 480px; max-width: 90vw; background: #0f172a; border-radius: 2rem; border: 1px solid rgba(255,255,255,0.1); transform: scale(0.95); opacity: 0; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .active .modal-card { transform: scale(1); opacity: 1; }
+        /* 底部导出面板 */
+        .admin-area { background: rgba(15, 23, 42, 0.9); border-top: 1px solid rgba(255,255,255,0.05); padding: 1.5rem 2rem; }
+        .btn-action { background: rgba(255,255,255,0.03); color: #94a3b8; font-size: 11px; font-weight: 800; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn-action:hover { background: rgba(255,255,255,0.08); color: #fff; }
     </style>
 </head>
-<body class="flex">
+<body class="flex h-screen">
 
     <aside class="w-80 h-full flex flex-col z-[1000] glass shrink-0">
-        <div class="p-8 shrink-0">
-            <h1 class="text-2xl font-extrabold tracking-tighter">FOOTPRINT</h1>
-            <p class="text-[9px] text-blue-500 mt-1 uppercase tracking-widest font-black">Structured Edition</p>
+        <div class="p-8 pb-4">
+            <h1 class="text-2xl font-black tracking-tighter text-white">WORLD WISH</h1>
+            <div class="flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Global Travel Log</span>
+            </div>
         </div>
 
-        <div class="px-8 space-y-3 mb-6 shrink-0">
-            <input id="searchInput" type="text" placeholder="输入目的地并回车..." 
-                onkeypress="if(event.key==='Enter') doSearch()"
-                class="w-full bg-slate-900 border border-white/10 rounded-2xl py-4 px-5 text-sm text-white focus:border-blue-500 outline-none transition-all">
-            <button onclick="doSearch()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-blue-900/40 transition-all">
-                添加新足迹
+        <!-- 搜索与星级选择 -->
+        <div class="px-8 mb-6">
+            <div class="relative">
+                <input id="searchInput" type="text" placeholder="搜索目的地..." 
+                    onkeydown="if(event.key==='Enter') doSearch()"
+                    class="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 px-5 text-sm text-white focus:border-blue-500 outline-none transition-all">
+            </div>
+
+            <button type="button" onclick="doSearch()" class="w-full mt-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98]">
+                添加地标
             </button>
         </div>
 
-        <!-- 按照大洲 > 国家 分类的列表 -->
+        <!-- 星级筛选过滤器 -->
+        <div class="px-8 mb-2">
+            <div class="text-[10px] text-slate-500 uppercase font-black tracking-wider mb-2">按星级快速筛选</div>
+            <div class="grid grid-cols-4 gap-1.5">
+                <button type="button" onclick="setFilter('all')" id="filter-all" class="filter-btn bg-blue-600 text-white py-2 rounded-xl text-[10px] font-black transition-all">全部</button>
+                <button type="button" onclick="setFilter(3)" id="filter-3" class="filter-btn bg-slate-900/60 border border-white/5 text-slate-400 py-2 rounded-xl text-[10px] font-black transition-all">★★★</button>
+                <button type="button" onclick="setFilter(2)" id="filter-2" class="filter-btn bg-slate-900/60 border border-white/5 text-slate-400 py-2 rounded-xl text-[10px] font-black transition-all">★★</button>
+                <button type="button" onclick="setFilter(1)" id="filter-1" class="filter-btn bg-slate-900/60 border border-white/5 text-slate-400 py-2 rounded-xl text-[10px] font-black transition-all">★</button>
+            </div>
+        </div>
+
+        <!-- 排序并过滤后的愿望清单 -->
         <div id="wishlist" class="flex-1 overflow-y-auto custom-scroll px-8 pb-4"></div>
 
-        <!-- 数据管理 -->
-        <div class="p-6 admin-area shrink-0">
-            <div class="grid grid-cols-2 gap-2 mb-3">
-                <button onclick="exportHTML()" class="btn-action flex items-center justify-center gap-2">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        <!-- 固定底部管理 -->
+        <div class="admin-area">
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="exportToHTML()" class="btn-action">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     导出 HTML
                 </button>
-                <button onclick="confirmClear()" class="btn-action hover:text-rose-400">
-                    清空数据
+                <button type="button" onclick="clearData()" class="btn-action hover:text-red-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    清空
                 </button>
             </div>
-            <p class="text-[8px] text-center text-slate-500 font-medium">支持多设备离线数据同步</p>
         </div>
     </aside>
+
+    <!-- 详情弹窗 -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/90 z-[2000] hidden items-center justify-center backdrop-blur-md" onclick="closeModal()">
+        <div class="w-[440px] bg-slate-900 border border-white/10 rounded-[40px] p-10 overflow-hidden relative" onclick="event.stopPropagation()">
+            <div id="mColorTag" class="absolute top-0 left-0 right-0 h-2"></div>
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <span id="mBadge" class="text-[9px] font-black px-2 py-1 rounded bg-white/10 uppercase mb-2 inline-block">Location</span>
+                    <h2 id="mTitle" class="text-3xl font-black text-white">地点名称</h2>
+                </div>
+                <button type="button" onclick="closeModal()" class="text-slate-500 hover:text-white">✕</button>
+            </div>
+
+            <!-- 星级修改区 -->
+            <div class="mb-6 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">心愿推荐星级</label>
+                <div class="flex gap-1.5" id="modalStarRating">
+                    <button type="button" onclick="setModalStars(1)" class="m-star-btn text-2xl transition-all hover:scale-125 text-amber-400">★</button>
+                    <button type="button" onclick="setModalStars(2)" class="m-star-btn text-2xl transition-all hover:scale-125 text-amber-400">★</button>
+                    <button type="button" onclick="setModalStars(3)" class="m-star-btn text-2xl transition-all hover:scale-125 text-amber-400">★</button>
+                </div>
+            </div>
+
+            <textarea id="mMemo" placeholder="在这里写下你的攻略或心情..." 
+                class="w-full bg-slate-800/50 border border-white/5 rounded-3xl p-6 text-sm h-40 outline-none focus:border-blue-500 text-slate-200 leading-relaxed"></textarea>
+            
+            <div class="grid grid-cols-2 gap-4 mt-8">
+                <button type="button" onclick="saveData()" class="bg-blue-600 py-4 rounded-2xl font-bold hover:bg-blue-500">保存修改</button>
+                <button type="button" onclick="deleteItem()" class="bg-slate-800 py-4 rounded-2xl font-bold text-slate-500 hover:text-red-400">删除标记</button>
+            </div>
+        </div>
+    </div>
 
     <main class="flex-1 relative">
         <div id="map"></div>
     </main>
 
-    <div id="modalOverlay" onclick="closeModal()">
-        <div class="modal-card p-10" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <div id="mTypeLabel" class="text-[9px] font-black uppercase mb-1 px-2 py-0.5 rounded inline-block">TYPE</div>
-                    <h2 id="mTitle" class="text-3xl font-extrabold text-white">地点名称</h2>
-                </div>
-                <button onclick="closeModal()" class="text-slate-500 hover:text-white text-xl">✕</button>
-            </div>
-            <textarea id="mMemo" placeholder="在这里记下你的故事、攻略或心情..." 
-                class="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sm h-48 mb-6 focus:border-blue-500 outline-none text-slate-200 leading-relaxed"></textarea>
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="saveData()" class="bg-blue-600 py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">保存备注</button>
-                <button onclick="deleteLoc()" class="bg-slate-800 py-4 rounded-2xl font-bold text-slate-400 hover:text-rose-400 transition-all">删除此点</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        const DB_KEY = 'FOOTPRINT_STRUCT_V1';
-        const EMBEDDED_PAYLOAD = []; // 导出时自动填入
-
-        let locations = JSON.parse(localStorage.getItem(DB_KEY)) || [];
-        if (locations.length === 0 && EMBEDDED_PAYLOAD.length > 0) {
-            locations = EMBEDDED_PAYLOAD;
-            localStorage.setItem(DB_KEY, JSON.stringify(locations));
+        const KEY = 'world_v18';
+        const EMBEDDED_DATA = []; // 导出锚点
+        
+        let locations = JSON.parse(localStorage.getItem(KEY)) || [];
+        if(locations.length === 0 && EMBEDDED_DATA.length > 0) {
+            locations = EMBEDDED_DATA;
+            localStorage.setItem(KEY, JSON.stringify(locations));
         }
 
-        const CONTINENT_MAP = { 'Asia':'亚洲','Europe':'欧洲','North America':'北美洲','South America':'南美洲','Africa':'非洲','Oceania':'大洋洲','Other':'其他' };
+        // 兼容旧数据：确保所有旧地点拥有默认 3 星
+        locations.forEach(l => {
+            if (l.stars === undefined) l.stars = 3;
+        });
+
         let map, layers = {}, currentId = null;
+        let selectedModalStars = 3;    // 编辑弹窗时的选定星级
+        let currentStarFilter = 'all';  // 星级过滤筛选状态
+
+        const CT_NAMES = { 'Asia':'亚洲','Europe':'欧洲','North America':'北美洲','South America':'南美洲','Africa':'非洲','Oceania':'大洋洲','Other':'其他' };
 
         window.onload = () => {
-            map = L.map('map', { zoomControl: false, minZoom: 2, attributionControl: false }).setView([25, 110], 4);
+            map = L.map('map', { zoomControl: false, minZoom: 2 }).setView([20, 0], 2);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { noWrap: true }).addTo(map);
-            locations.forEach(loc => drawOnMap(loc));
+            locations.forEach(draw);
             renderList();
         };
 
-        function drawOnMap(loc) {
-            let layer;
-            // 首都红色，其他蓝色
-            const color = (loc.type === 'capital') ? '#f43f5e' : '#3b82f6';
-
-            if (loc.type === 'country' && loc.geojson) {
-                layer = L.geoJSON(loc.geojson, { 
-                    style: { color: color, weight: 1.5, fillColor: color, fillOpacity: 0.15 } 
-                }).addTo(map);
-            } else {
-                layer = L.circleMarker([loc.lat, loc.lng], {
-                    radius: loc.type === 'capital' ? 8 : 6,
-                    fillColor: color, color: '#fff', weight: 2, fillOpacity: 1
-                }).addTo(map);
-            }
-
-            layer.bindTooltip(createTipHTML(loc), {
-                direction: 'top', 
-                offset: [0, -10], 
-                sticky: true,
-                opacity: 1
+        // 设置编辑弹窗中的星级 UI
+        function setModalStars(num) {
+            selectedModalStars = num;
+            const buttons = document.querySelectorAll('#modalStarRating .m-star-btn');
+            buttons.forEach((btn, idx) => {
+                if (idx < num) {
+                    btn.classList.remove('text-slate-600');
+                    btn.classList.add('text-amber-400');
+                } else {
+                    btn.classList.remove('text-amber-400');
+                    btn.classList.add('text-slate-600');
+                }
             });
-
-            layer.on('click', () => openModal(loc.id));
-            layers[loc.id] = layer;
         }
 
-        function createTipHTML(loc) {
-            const color = loc.type === 'capital' ? '#f43f5e' : '#3b82f6';
-            const typeText = loc.type === 'country' ? '国家' : (loc.type === 'capital' ? '首都' : '地点');
-            return `
-                <div class="tip-card">
-                    <div class="tip-accent" style="background: ${color}"></div>
-                    <div class="tip-body">
-                        <div class="tip-title">
-                            <span>${loc.name}</span>
-                            <span style="font-size: 8px; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,0.05); color: ${color}">${typeText}</span>
-                        </div>
-                        <div class="tip-content">${loc.memo || '点击标记即可编辑备注...'}</div>
-                    </div>
-                </div>
-            `;
+        // 设置筛选器
+        function setFilter(val) {
+            currentStarFilter = val;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-slate-900/60', 'border', 'border-white/5', 'text-slate-400');
+            });
+            const activeBtn = document.getElementById(`filter-${val}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-slate-900/60', 'border', 'border-white/5', 'text-slate-400');
+                activeBtn.classList.add('bg-blue-600', 'text-white');
+            }
+            applyFilter();
+        }
+
+        // 应用过滤逻辑（联动地图和列表）
+        function applyFilter() {
+            locations.forEach(loc => {
+                const matches = (currentStarFilter === 'all' || loc.stars === parseInt(currentStarFilter));
+                if (layers[loc.id]) {
+                    if (matches) {
+                        if (!map.hasLayer(layers[loc.id])) {
+                            map.addLayer(layers[loc.id]);
+                        }
+                    } else {
+                        if (map.hasLayer(layers[loc.id])) {
+                            map.removeLayer(layers[loc.id]);
+                        }
+                    }
+                }
+            });
+            renderList();
         }
 
         async function doSearch() {
@@ -184,91 +226,183 @@
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&polygon_geojson=1&addressdetails=1&limit=1`);
                 const data = await res.json();
-                if(data.length > 0) {
+                if(data?.[0]) {
                     const it = data[0];
                     const addr = it.address;
-                    
-                    // 识别类型
                     let type = 'place';
-                    if (it.place_rank <= 4 || it.addresstype === 'country') type = 'country';
-                    else if (it.addresstype === 'capital' || addr.capital === 'yes') type = 'capital';
+                    if(it.place_rank <= 4 || it.addresstype === 'country') type = 'country';
+                    else if(it.addresstype === 'capital' || addr.capital === 'yes') type = 'capital';
 
-                    const newLoc = {
-                        id: Date.now(), 
-                        name: it.display_name.split(',')[0], 
-                        type: type,
+                    const item = {
+                        id: Date.now(),
+                        name: it.display_name.split(',')[0],
+                        type,
                         lat: parseFloat(it.lat), lng: parseFloat(it.lon),
                         geojson: type === 'country' ? it.geojson : null,
-                        country: addr.country || '其他',
-                        continent: detectContinent(addr.country_code),
+                        country: addr.country || '未知',
+                        ct: getContinent(addr.country_code),
+                        stars: 3, // 新搜索地标默认设定为 3 星
                         memo: ''
                     };
-                    
-                    locations.push(newLoc);
+                    locations.push(item);
                     save();
-                    drawOnMap(newLoc);
-                    renderList();
-                    map.flyTo([newLoc.lat, newLoc.lng], type === 'country' ? 4 : 10);
-                    openModal(newLoc.id);
+                    draw(item);
+                    applyFilter(); // 绘制后立即应用当前过滤器
+                    map.flyTo([item.lat, item.lng], type === 'country' ? 4 : 12);
+                    openModal(item.id);
                     document.getElementById('searchInput').value = '';
                 }
             } catch(e) { console.error(e); }
         }
 
-        function renderList() {
-            const box = document.getElementById('wishlist');
-            box.innerHTML = '';
+        function createTipHTML(loc) {
+            const color = loc.type === 'capital' ? '#f43f5e' : '#3b82f6';
+            const typeLabel = loc.type === 'country' ? '国家' : (loc.type === 'capital' ? '首都' : '地点');
+            const starsStr = '★'.repeat(loc.stars || 3) + '☆'.repeat(3 - (loc.stars || 3));
             
-            // 归档：洲 -> 国家 -> 地点
+            return `
+                <div class="tip-accent" style="background: ${color}"></div>
+                <div class="tip-container">
+                    <div class="tip-title">
+                        <span>${loc.name} <span class="text-amber-400 text-xs ml-1">${starsStr}</span></span>
+                        <span style="font-size: 8px; opacity: 0.5; font-weight: 900;">${typeLabel.toUpperCase()}</span>
+                    </div>
+                    <div class="tip-content">${loc.memo || '暂无备注...'}</div>
+                </div>
+            `;
+        }
+
+        function draw(loc) {
+            let layer;
+            if(loc.type === 'country' && loc.geojson) {
+                layer = L.geoJSON(loc.geojson, { style: { color: '#3b82f6', weight: 1.5, fillColor: '#3b82f6', fillOpacity: 0.15 } }).addTo(map);
+            } else {
+                const isCap = loc.type === 'capital';
+                layer = L.circleMarker([loc.lat, loc.lng], {
+                    radius: isCap ? 8 : 6,
+                    fillColor: isCap ? '#f43f5e' : '#3b82f6',
+                    color: '#fff', weight: 2, fillOpacity: 1
+                }).addTo(map);
+            }
+
+            layer.bindTooltip(createTipHTML(loc), { direction: 'top', offset: [0, -10], sticky: true, className: 'custom-tip' });
+            layer.on('tooltipopen', (e) => e.tooltip.getElement().classList.add('leaflet-tooltip-fade-in'));
+            layer.on('click', () => openModal(loc.id));
+            layers[loc.id] = layer;
+        }
+
+        function renderList() {
+            const list = document.getElementById('wishlist');
+            list.innerHTML = '';
+            
             const tree = {};
-            locations.forEach(l => {
-                const ct = l.continent || 'Other';
+            // 在分组前，依据星级条件筛选数据
+            const filteredLocs = locations.filter(l => currentStarFilter === 'all' || l.stars === parseInt(currentStarFilter));
+
+            filteredLocs.forEach(l => {
+                const ct = l.ct || 'Other';
                 const cy = l.country || '其他';
                 if(!tree[ct]) tree[ct] = {};
                 if(!tree[ct][cy]) tree[ct][cy] = [];
                 tree[ct][cy].push(l);
             });
 
-            // 排序输出
             Object.keys(tree).sort().forEach(ct => {
-                const ctEl = document.createElement('div');
-                ctEl.className = 'tree-ct-title';
-                ctEl.innerText = CONTINENT_MAP[ct] || ct;
-                box.appendChild(ctEl);
+                const ctHead = document.createElement('div');
+                ctHead.className = 'tree-ct';
+                ctHead.innerText = CT_NAMES[ct] || ct;
+                list.appendChild(ctHead);
 
                 Object.keys(tree[ct]).sort().forEach(cy => {
                     const cyBox = document.createElement('div');
-                    cyBox.className = 'tree-cy-box';
+                    cyBox.className = 'tree-cy';
                     cyBox.innerHTML = `<div class="tree-cy-name">${cy}</div>`;
                     
-                    // 首都置顶
-                    const sorted = tree[ct][cy].sort((a,b) => {
+                    const sortedPlaces = tree[ct][cy].sort((a,b) => {
                         if(a.type === 'capital' && b.type !== 'capital') return -1;
                         if(a.type !== 'capital' && b.type === 'capital') return 1;
                         return a.name.localeCompare(b.name);
                     });
 
-                    sorted.forEach(loc => {
-                        const el = document.createElement('div');
-                        el.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-all text-xs text-slate-300 mb-0.5';
-                        el.onclick = () => { map.panTo([loc.lat, loc.lng]); openModal(loc.id); };
+                    sortedPlaces.forEach(loc => {
+                        const row = document.createElement('div');
+                        row.className = `tree-pl ${currentId === loc.id ? 'active' : ''}`;
+                        row.onclick = () => openModal(loc.id);
                         
-                        const dotColor = loc.type === 'capital' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-blue-500';
-                        el.innerHTML = `
-                            <span class="w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}"></span>
-                            <span class="truncate flex-1">${loc.name}</span>
-                            ${loc.type === 'capital' ? '<span class="text-[8px] opacity-40 font-bold">首都</span>' : ''}
-                        `;
-                        cyBox.appendChild(el);
+                        const colorClass = loc.type === 'capital' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 
+                                          (loc.type === 'country' ? 'bg-blue-500/30 border border-blue-500' : 'bg-blue-500');
+                        
+                        const starBadge = '★'.repeat(loc.stars || 3) + '☆'.repeat(3 - (loc.stars || 3));
+                        
+                        row.innerHTML = `<span class="w-2 h-2 rounded-full ${colorClass}"></span>
+                                         <span class="truncate flex-1">${loc.name} <span class="text-[9px] text-amber-400 font-bold ml-1">${starBadge}</span></span>
+                                         <span class="text-[8px] opacity-40 font-black">${loc.type === 'capital' ? '首都' : ''}</span>`;
+                        cyBox.appendChild(row);
                     });
-                    box.appendChild(cyBox);
+                    list.appendChild(cyBox);
                 });
             });
         }
 
-        function detectContinent(code) {
+        function openModal(id) {
+            currentId = id;
+            const loc = locations.find(l => l.id === id);
+            const overlay = document.getElementById('modalOverlay');
+            document.getElementById('mTitle').innerText = loc.name;
+            document.getElementById('mMemo').value = loc.memo || '';
+            document.getElementById('mBadge').innerText = loc.type;
+            document.getElementById('mColorTag').style.background = loc.type === 'capital' ? '#f43f5e' : '#3b82f6';
+            
+            // 同步编辑星级
+            setModalStars(loc.stars || 3);
+
+            overlay.style.display = 'flex';
+            map.panTo([loc.lat, loc.lng]);
+            renderList();
+        }
+
+        function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; currentId = null; renderList(); }
+        
+        function saveData() {
+            const loc = locations.find(l => l.id === currentId);
+            if(loc) {
+                loc.memo = document.getElementById('mMemo').value;
+                loc.stars = selectedModalStars; // 保存选择的星级
+                save();
+                if(layers[currentId]) {
+                    layers[currentId].setTooltipContent(createTipHTML(loc));
+                }
+                applyFilter(); // 应用更新过滤
+                closeModal();
+            }
+        }
+
+        function deleteItem() {
+            if(!currentId) return;
+            if(layers[currentId]) map.removeLayer(layers[currentId]);
+            locations = locations.filter(l => l.id !== currentId);
+            save();
+            renderList();
+            closeModal();
+        }
+
+        function save() { localStorage.setItem(KEY, JSON.stringify(locations)); }
+
+        function exportToHTML() {
+            const data = JSON.stringify(locations);
+            const html = document.documentElement.outerHTML.replace(/const EMBEDDED_DATA = \[.*?\];/, `const EMBEDDED_DATA = ${data};`);
+            const blob = new Blob([html], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Footprint_Backup_${new Date().getTime()}.html`;
+            a.click();
+        }
+
+        function clearData() { if(confirm('确定清空所有数据吗？')) { localStorage.removeItem(KEY); locations = []; renderList(); location.reload(); } }
+
+        function getContinent(code) {
             const eu = ['at','be','bg','hr','cy','cz','dk','ee','fi','fr','de','gr','hu','ie','it','lv','lt','lu','mt','nl','pl','pt','ro','sk','si','es','se','gb','is','no','ch','ru','ua'];
-            const as = ['cn','jp','kr','in','id','th','vn','sg','my','ph','ae','sa','tr','il','pk','bd','tw','hk'];
+            const as = ['cn','jp','kr','in','id','th','vn','sg','my','ph','ae','sa','tr','il','pk','bd'];
             const na = ['us','ca','mx','gl','cu','pa','cr'];
             const sa = ['br','ar','cl','co','pe','ve','ec'];
             const af = ['za','eg','ng','ke','ma','et'];
@@ -282,69 +416,7 @@
             if(oc.includes(c)) return 'Oceania';
             return 'Other';
         }
-
-        function openModal(id) {
-            currentId = id;
-            const loc = locations.find(l => l.id === id);
-            document.getElementById('mTitle').innerText = loc.name;
-            document.getElementById('mMemo').value = loc.memo || '';
-            const lbl = document.getElementById('mTypeLabel');
-            lbl.innerText = loc.type.toUpperCase();
-            lbl.className = `text-[9px] font-black uppercase mb-1 px-2 py-0.5 rounded inline-block ${loc.type === 'capital' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`;
-            const m = document.getElementById('modalOverlay');
-            m.style.display = 'flex';
-            setTimeout(() => m.classList.add('active'), 10);
-        }
-
-        function closeModal() {
-            const m = document.getElementById('modalOverlay');
-            m.classList.remove('active');
-            setTimeout(() => { m.style.display = 'none'; currentId = null; }, 300);
-        }
-
-        function saveData() {
-            const loc = locations.find(l => l.id === currentId);
-            if(loc) {
-                loc.memo = document.getElementById('mMemo').value;
-                save();
-                if(layers[currentId]) layers[currentId].setTooltipContent(createTipHTML(loc));
-                closeModal();
-                renderList();
-            }
-        }
-
-        function deleteLoc() {
-            if(!currentId) return;
-            if(layers[currentId]) map.removeLayer(layers[currentId]);
-            locations = locations.filter(l => l.id !== currentId);
-            save();
-            renderList();
-            closeModal();
-        }
-
-        function save() { localStorage.setItem(DB_KEY, JSON.stringify(locations)); }
-
-        function exportHTML() {
-            const dataStr = JSON.stringify(locations);
-            let htmlContent = document.documentElement.outerHTML;
-            const newContent = htmlContent.replace(/const EMBEDDED_PAYLOAD = \[.*?\];/, `const EMBEDDED_PAYLOAD = ${dataStr};`);
-            const blob = new Blob([newContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `WISH_MAP_EXPORT_${new Date().getTime()}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function confirmClear() {
-            if (confirm("确定要永久清空所有足迹吗？建议先导出 HTML 进行备份。")) {
-                locations = [];
-                save();
-                location.reload();
-            }
-        }
     </script>
 </body>
 </html>
+```
