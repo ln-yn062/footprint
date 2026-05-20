@@ -332,10 +332,8 @@
                         const colorClass = loc.type === 'capital' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 
                                           (loc.type === 'country' ? 'bg-blue-500/30 border border-blue-500' : 'bg-blue-500');
                         
-                        const starBadge = '★'.repeat(loc.stars || 3) + '☆'.repeat(3 - (loc.stars || 3));
-                        
                         row.innerHTML = `<span class="w-2 h-2 rounded-full ${colorClass}"></span>
-                                         <span class="truncate flex-1">${loc.name} <span class="text-[9px] text-amber-400 font-bold ml-1">${starBadge}</span></span>
+                                         <span class="truncate flex-1">${loc.name}</span>
                                          <span class="text-[8px] opacity-40 font-black">${loc.type === 'capital' ? '首都' : ''}</span>`;
                         cyBox.appendChild(row);
                     });
