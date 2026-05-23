@@ -17,26 +17,9 @@
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
 
-        .leaflet-tooltip {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            opacity: 1 !important;
-        }
+        .leaflet-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; opacity: 1 !important; }
 
-        .tip-card {
-            background: rgba(15, 23, 42, 0.98);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px;
-            width: 320px;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(12px);
-            pointer-events: none;
-            animation: fadeIn 0.2s ease-out;
-            overflow: hidden;
-        }
-
+        .tip-card { background: rgba(15, 23, 42, 0.98); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 14px; width: 320px; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7); backdrop-filter: blur(12px); pointer-events: none; animation: fadeIn 0.2s ease-out; overflow: hidden; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
         .tip-accent { width: 100%; height: 3px; }
@@ -55,10 +38,6 @@
         #modalOverlay { background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; position: fixed; inset: 0; backdrop-filter: blur(10px); }
         .modal-card { width: 480px; max-width: 90vw; background: #0f172a; border-radius: 2rem; border: 1px solid rgba(255,255,255,0.1); transform: scale(0.95); opacity: 0; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .active .modal-card { transform: scale(1); opacity: 1; }
-        
-        /* 新增：选中状态类 */
-        .star-btn { transition: 0.2s; }
-        .star-btn.active-star { background: #ca8a04; color: #fff; }
     </style>
 </head>
 <body class="flex">
@@ -73,14 +52,19 @@
             <input id="searchInput" type="text" placeholder="输入目的地并回车..." 
                 onkeypress="if(event.key==='Enter') doSearch()"
                 class="w-full bg-slate-900 border border-white/10 rounded-2xl py-4 px-5 text-sm text-white focus:border-blue-500 outline-none transition-all">
-            
-            <div class="flex items-center gap-2 bg-slate-900 p-2 rounded-2xl border border-white/5">
-                <button onclick="setFilter(0)" class="flex-1 text-[10px] py-2 rounded-xl transition-all hover:bg-slate-800">全部</button>
-                <button onclick="setFilter(3)" class="flex-1 text-[10px] py-2 rounded-xl transition-all hover:bg-slate-800">★★★</button>
-                <button onclick="setFilter(2)" class="flex-1 text-[10px] py-2 rounded-xl transition-all hover:bg-slate-800">★★</button>
-                <button onclick="setFilter(1)" class="flex-1 text-[10px] py-2 rounded-xl transition-all hover:bg-slate-800">★</button>
+            <div class="grid grid-cols-2 gap-2">
+                <select id="filterStatus" onchange="renderList()" class="bg-slate-900 border border-white/10 rounded-xl py-2 px-3 text-[11px] text-slate-300 outline-none">
+                    <option value="all">全部状态</option>
+                    <option value="visited">已打卡</option>
+                    <option value="unvisited">未打卡</option>
+                </select>
+                <select id="filterStar" onchange="renderList()" class="bg-slate-900 border border-white/10 rounded-xl py-2 px-3 text-[11px] text-slate-300 outline-none">
+                    <option value="0">全部星级</option>
+                    <option value="1">1星</option>
+                    <option value="2">2星</option>
+                    <option value="3">3星</option>
+                </select>
             </div>
-            
             <button onclick="doSearch()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-blue-900/40 transition-all">
                 添加新足迹
             </button>
@@ -90,13 +74,8 @@
 
         <div class="p-6 admin-area shrink-0">
             <div class="grid grid-cols-2 gap-2 mb-3">
-                <button onclick="exportHTML()" class="btn-action flex items-center justify-center gap-2">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    导出 HTML
-                </button>
-                <button onclick="confirmClear()" class="btn-action hover:text-rose-400">
-                    清空数据
-                </button>
+                <button onclick="exportHTML()" class="btn-action flex items-center justify-center gap-2">导出 HTML</button>
+                <button onclick="confirmClear()" class="btn-action hover:text-rose-400">清空数据</button>
             </div>
             <p class="text-[8px] text-center text-slate-500 font-medium">支持多设备离线数据同步</p>
         </div>
@@ -115,13 +94,15 @@
                 </div>
                 <button onclick="closeModal()" class="text-slate-500 hover:text-white text-xl">✕</button>
             </div>
-            <div class="flex gap-2 mb-4" id="starSelector">
-                <button id="s1" onclick="setStar(1)" class="star-btn px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">★</button>
-                <button id="s2" onclick="setStar(2)" class="star-btn px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">★★</button>
-                <button id="s3" onclick="setStar(3)" class="star-btn px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">★★★</button>
+            <div class="flex gap-4 mb-4">
+                <label class="flex items-center gap-2 text-sm text-slate-300">
+                    <input type="checkbox" id="mVisited" class="w-4 h-4"> 是否已打卡
+                </label>
+                <select id="mStar" class="bg-slate-950 border border-white/10 rounded-lg p-2 text-sm text-slate-300">
+                    <option value="0">无评级</option><option value="1">1星</option><option value="2">2星</option><option value="3">3星</option>
+                </select>
             </div>
-            <textarea id="mMemo" placeholder="在这里记下你的故事、攻略或心情..." 
-                class="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sm h-48 mb-6 focus:border-blue-500 outline-none text-slate-200 leading-relaxed"></textarea>
+            <textarea id="mMemo" placeholder="在这里记下你的故事、攻略或心情..." class="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sm h-48 mb-6 focus:border-blue-500 outline-none text-slate-200 leading-relaxed"></textarea>
             <div class="grid grid-cols-2 gap-4">
                 <button onclick="saveData()" class="bg-blue-600 py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">保存备注</button>
                 <button onclick="deleteLoc()" class="bg-slate-800 py-4 rounded-2xl font-bold text-slate-400 hover:text-rose-400 transition-all">删除此点</button>
@@ -131,16 +112,9 @@
 
     <script>
         const DB_KEY = 'FOOTPRINT_STRUCT_V1';
-        const EMBEDDED_PAYLOAD = []; 
-
+        const EMBEDDED_PAYLOAD = [];
         let locations = JSON.parse(localStorage.getItem(DB_KEY)) || [];
-        let currentFilter = 0;
-        let tempStar = 1;
-
-        if (locations.length === 0 && EMBEDDED_PAYLOAD.length > 0) {
-            locations = EMBEDDED_PAYLOAD;
-            localStorage.setItem(DB_KEY, JSON.stringify(locations));
-        }
+        if (locations.length === 0 && EMBEDDED_PAYLOAD.length > 0) { locations = EMBEDDED_PAYLOAD; localStorage.setItem(DB_KEY, JSON.stringify(locations)); }
 
         const CONTINENT_MAP = { 'Asia':'亚洲','Europe':'欧洲','North America':'北美洲','South America':'南美洲','Africa':'非洲','Oceania':'大洋洲','Other':'其他' };
         let map, layers = {}, currentId = null;
@@ -153,22 +127,22 @@
         };
 
         function drawOnMap(loc) {
+            if(layers[loc.id]) map.removeLayer(layers[loc.id]);
+            const color = loc.visited ? '#10b981' : (loc.type === 'capital' ? '#f43f5e' : '#3b82f6');
             let layer;
-            const color = (loc.type === 'capital') ? '#f43f5e' : '#3b82f6';
             if (loc.type === 'country' && loc.geojson) {
                 layer = L.geoJSON(loc.geojson, { style: { color: color, weight: 1.5, fillColor: color, fillOpacity: 0.15 } }).addTo(map);
             } else {
                 layer = L.circleMarker([loc.lat, loc.lng], { radius: loc.type === 'capital' ? 8 : 6, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
             }
-            layer.bindTooltip(createTipHTML(loc), { direction: 'top', offset: [0, -10], sticky: true, opacity: 1 });
+            layer.bindTooltip(createTipHTML(loc), { direction: 'top', offset: [0, -10], sticky: true });
             layer.on('click', () => openModal(loc.id));
             layers[loc.id] = layer;
         }
 
         function createTipHTML(loc) {
-            const color = loc.type === 'capital' ? '#f43f5e' : '#3b82f6';
-            const starText = '★'.repeat(loc.star || 1);
-            return `<div class="tip-card"><div class="tip-accent" style="background: ${color}"></div><div class="tip-body"><div class="tip-title"><span>${loc.name}</span><span style="color: #fbbf24">${starText}</span></div><div class="tip-content">${loc.memo || '无备注'}</div></div></div>`;
+            const color = loc.visited ? '#10b981' : (loc.type === 'capital' ? '#f43f5e' : '#3b82f6');
+            return `<div class="tip-card"><div class="tip-accent" style="background: ${color}"></div><div class="tip-body"><div class="tip-title"><span>${loc.name}</span><span style="font-size: 8px; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,0.05); color: ${color}">${loc.visited ? '已打卡' : loc.type}</span></div><div class="tip-content">${loc.memo || '点击标记即可编辑备注...'}</div></div></div>`;
         }
 
         async function doSearch() {
@@ -181,7 +155,7 @@
                     const it = data[0];
                     const addr = it.address;
                     let type = (it.place_rank <= 4 || it.addresstype === 'country') ? 'country' : (addr.capital === 'yes' ? 'capital' : 'place');
-                    const newLoc = { id: Date.now(), name: it.display_name.split(',')[0], type: type, lat: parseFloat(it.lat), lng: parseFloat(it.lon), geojson: type === 'country' ? it.geojson : null, country: addr.country || '其他', continent: detectContinent(addr.country_code), memo: '', star: 1 };
+                    const newLoc = { id: Date.now(), name: it.display_name.split(',')[0], type: type, lat: parseFloat(it.lat), lng: parseFloat(it.lon), geojson: type === 'country' ? it.geojson : null, country: addr.country || '其他', continent: detectContinent(addr.country_code), memo: '', visited: false, star: 0 };
                     locations.push(newLoc);
                     save();
                     drawOnMap(newLoc);
@@ -192,17 +166,16 @@
             } catch(e) { console.error(e); }
         }
 
-        function setFilter(s) { currentFilter = s; renderList(); }
-        function setStar(s) { 
-            tempStar = s; 
-            document.querySelectorAll('.star-btn').forEach(btn => btn.classList.remove('active-star'));
-            document.getElementById('s' + s).classList.add('active-star');
-        }
-
         function renderList() {
             const box = document.getElementById('wishlist');
+            const status = document.getElementById('filterStatus').value;
+            const star = parseInt(document.getElementById('filterStar').value);
             box.innerHTML = '';
-            const filtered = currentFilter === 0 ? locations : locations.filter(l => l.star === currentFilter);
+            // 修正筛选逻辑：只显示选择的特定星级（0为全部显示）
+            const filtered = locations.filter(l => 
+                (status === 'all' || (status === 'visited' ? l.visited : !l.visited)) && 
+                (star === 0 || (l.star || 0) === star)
+            );
             const tree = {};
             filtered.forEach(l => {
                 const ct = l.continent || 'Other';
@@ -220,11 +193,12 @@
                     const cyBox = document.createElement('div');
                     cyBox.className = 'tree-cy-box';
                     cyBox.innerHTML = `<div class="tree-cy-name">${cy}</div>`;
-                    tree[ct][cy].sort((a,b) => b.star - a.star).forEach(loc => {
+                    tree[ct][cy].forEach(loc => {
                         const el = document.createElement('div');
-                        el.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-all text-xs text-slate-300';
+                        el.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-all text-xs text-slate-300 mb-0.5';
                         el.onclick = () => { map.panTo([loc.lat, loc.lng]); openModal(loc.id); };
-                        el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${loc.type === 'capital' ? 'bg-rose-500' : 'bg-blue-500'}"></span><span class="truncate flex-1">${loc.name}</span><span class="text-[8px] text-yellow-500">${'★'.repeat(loc.star)}</span>`;
+                        const dotColor = loc.visited ? 'bg-emerald-500' : (loc.type === 'capital' ? 'bg-rose-500' : 'bg-blue-500');
+                        el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}"></span><span class="truncate flex-1">${loc.name}</span>`;
                         cyBox.appendChild(el);
                     });
                     box.appendChild(cyBox);
@@ -233,42 +207,37 @@
         }
 
         function detectContinent(code) {
-            const eu = ['at','be','bg','hr','cy','cz','dk','ee','fi','fr','de','gr','hu','ie','it','lv','lt','lu','mt','nl','pl','pt','ro','sk','si','es','se','gb','is','no','ch','ru','ua'];
-            const as = ['cn','jp','kr','in','id','th','vn','sg','my','ph','ae','sa','tr','il','pk','bd','tw','hk'];
-            const na = ['us','ca','mx','gl','cu','pa','cr'];
-            const sa = ['br','ar','cl','co','pe','ve','ec'];
-            const af = ['za','eg','ng','ke','ma','et'];
-            const oc = ['au','nz','fj'];
             const c = code?.toLowerCase();
-            if(eu.includes(c)) return 'Europe'; if(as.includes(c)) return 'Asia'; if(na.includes(c)) return 'North America'; if(sa.includes(c)) return 'South America'; if(af.includes(c)) return 'Africa'; if(oc.includes(c)) return 'Oceania'; return 'Other';
+            if(['at','be','de','fr','it','es','gb'].includes(c)) return 'Europe';
+            if(['cn','jp','kr','in','th'].includes(c)) return 'Asia';
+            return 'Other';
         }
 
         function openModal(id) {
             currentId = id;
             const loc = locations.find(l => l.id === id);
-            setStar(loc.star || 1);
             document.getElementById('mTitle').innerText = loc.name;
             document.getElementById('mMemo').value = loc.memo || '';
-            const m = document.getElementById('modalOverlay');
-            m.style.display = 'flex';
-            setTimeout(() => m.classList.add('active'), 10);
+            document.getElementById('mVisited').checked = !!loc.visited;
+            document.getElementById('mStar').value = loc.star || 0;
+            const lbl = document.getElementById('mTypeLabel');
+            lbl.innerText = loc.type.toUpperCase();
+            document.getElementById('modalOverlay').style.display = 'flex';
+            setTimeout(() => document.getElementById('modalOverlay').classList.add('active'), 10);
         }
 
-        function closeModal() {
-            const m = document.getElementById('modalOverlay');
-            m.classList.remove('active');
-            setTimeout(() => { m.style.display = 'none'; currentId = null; }, 300);
-        }
+        function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); setTimeout(() => { document.getElementById('modalOverlay').style.display = 'none'; currentId = null; }, 300); }
 
         function saveData() {
             const loc = locations.find(l => l.id === currentId);
             if(loc) {
                 loc.memo = document.getElementById('mMemo').value;
-                loc.star = tempStar;
+                loc.visited = document.getElementById('mVisited').checked;
+                loc.star = parseInt(document.getElementById('mStar').value);
                 save();
-                if(layers[currentId]) layers[currentId].setTooltipContent(createTipHTML(loc));
-                closeModal();
+                drawOnMap(loc);
                 renderList();
+                closeModal();
             }
         }
 
@@ -285,25 +254,15 @@
 
         function exportHTML() {
             const dataStr = JSON.stringify(locations);
-            let htmlContent = document.documentElement.outerHTML;
-            const newContent = htmlContent.replace(/const EMBEDDED_PAYLOAD = \[.*?\];/, `const EMBEDDED_PAYLOAD = ${dataStr};`);
-            const blob = new Blob([newContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
+            let htmlContent = document.documentElement.outerHTML.replace(/const EMBEDDED_PAYLOAD = \[.*?\];/, `const EMBEDDED_PAYLOAD = ${dataStr};`);
+            const blob = new Blob([htmlContent], { type: 'text/html' });
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = `WISH_MAP_EXPORT_${new Date().getTime()}.html`;
-            document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
         }
 
-        function confirmClear() {
-            if (confirm("确定要永久清空所有足迹吗？建议先导出 HTML 进行备份。")) {
-                locations = [];
-                save();
-                location.reload();
-            }
-        }
+        function confirmClear() { if (confirm("确定要永久清空所有足迹吗？")) { locations = []; save(); location.reload(); } }
     </script>
 </body>
 </html>
