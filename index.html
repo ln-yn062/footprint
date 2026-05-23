@@ -13,6 +13,10 @@
         body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; height: 100vh; }
         #map { width: 100%; height: 100%; background: #020617; }
         
+        /* 创建自定义 Pane 确保点图层始终在面图层上方 */
+        .leaflet-marker-pane { z-index: 600 !important; }
+        .leaflet-overlay-pane { z-index: 400 !important; }
+
         .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,0.1); }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
@@ -122,6 +126,11 @@
         window.onload = () => {
             map = L.map('map', { zoomControl: false, minZoom: 2, attributionControl: false }).setView([25, 110], 4);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { noWrap: true }).addTo(map);
+            
+            // 创建专门的点位层
+            map.createPane('pointPane');
+            map.getPane('pointPane').style.zIndex = 650;
+
             locations.forEach(loc => drawOnMap(loc));
             renderList();
         };
@@ -133,16 +142,18 @@
             if (loc.type === 'country' && loc.geojson) {
                 layer = L.geoJSON(loc.geojson, { style: { color: color, weight: 1.5, fillColor: color, fillOpacity: 0.15 } }).addTo(map);
             } else {
-                layer = L.circleMarker([loc.lat, loc.lng], { radius: loc.type === 'capital' ? 8 : 6, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
+                // 使用 pane 确保点位图层高于一切
+                layer = L.circleMarker([loc.lat, loc.lng], { 
+                    radius: loc.type === 'capital' ? 8 : 6, 
+                    fillColor: color, 
+                    color: '#fff', 
+                    weight: 2, 
+                    fillOpacity: 1,
+                    pane: 'pointPane' 
+                }).addTo(map);
             }
             layer.bindTooltip(createTipHTML(loc), { direction: 'top', offset: [0, -10], sticky: true });
             layer.on('click', () => openModal(loc.id));
-            
-            // 确保点标记始终在面状图层上方
-            if (loc.type !== 'country') {
-                layer.bringToFront();
-            }
-            
             layers[loc.id] = layer;
         }
 
