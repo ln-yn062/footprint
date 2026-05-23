@@ -137,6 +137,12 @@
             }
             layer.bindTooltip(createTipHTML(loc), { direction: 'top', offset: [0, -10], sticky: true });
             layer.on('click', () => openModal(loc.id));
+            
+            // 确保点标记始终在面状图层上方
+            if (loc.type !== 'country') {
+                layer.bringToFront();
+            }
+            
             layers[loc.id] = layer;
         }
 
@@ -171,7 +177,6 @@
             const status = document.getElementById('filterStatus').value;
             const star = parseInt(document.getElementById('filterStar').value);
             box.innerHTML = '';
-            // 修正筛选逻辑：只显示选择的特定星级（0为全部显示）
             const filtered = locations.filter(l => 
                 (status === 'all' || (status === 'visited' ? l.visited : !l.visited)) && 
                 (star === 0 || (l.star || 0) === star)
